@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SRE-FOR-ALL · Canlı Öğrenme Konsolu</title>
+<style>
+:root{
+  --bg:#070b14; --panel:rgba(148,163,184,.055); --panel2:rgba(148,163,184,.09);
+  --line:rgba(148,163,184,.14); --txt:#e2e8f0; --dim:#8b9bb4; --faint:#5a6b85;
+  --cyan:#22d3ee; --green:#34d399; --red:#f87171; --amber:#fbbf24; --violet:#a78bfa;
+  --mono:ui-monospace,'Cascadia Mono','SF Mono',Consolas,monospace;
+  --sans:'Segoe UI',system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:var(--sans);color:var(--txt);background:var(--bg);
+  background-image:
+    radial-gradient(1200px 500px at 70% -10%, rgba(34,211,238,.07), transparent 60%),
+    radial-gradient(900px 400px at 10% 110%, rgba(167,139,250,.06), transparent 60%),
+    linear-gradient(rgba(148,163,184,.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148,163,184,.035) 1px, transparent 1px);
+  background-size:auto,auto,44px 44px,44px 44px;
+  height:100vh;display:flex;flex-direction:column;overflow:hidden;
+}
+::selection{background:rgba(34,211,238,.3)}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-thumb{background:rgba(148,163,184,.25);border-radius:8px}
+::-webkit-scrollbar-track{background:transparent}
+
+/* ---------- üst bar ---------- */
+header{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+.logo{display:flex;align-items:center;gap:12px}
+.logo .mark{width:38px;height:38px;border-radius:11px;position:relative;
+  background:conic-gradient(from 210deg,#0e7490,#22d3ee,#a78bfa,#0e7490);
+  box-shadow:0 0 22px rgba(34,211,238,.35)}
+.logo .mark::after{content:"";position:absolute;inset:4px;border-radius:8px;background:#0a101d}
+.logo .mark::before{content:"◍";position:absolute;inset:0;display:flex;align-items:center;
+  justify-content:center;font-size:19px;color:var(--cyan);z-index:1}
+.logo h1{font-size:17px;letter-spacing:.4px;font-weight:650}
+.logo h1 small{display:block;font-size:11px;color:var(--dim);font-weight:400;letter-spacing:1.6px}
+.spacer{flex:1}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;
+  font-size:12.5px;font-weight:600;border:1px solid var(--line);background:var(--panel)}
+.pill .dot{width:9px;height:9px;border-radius:50%;background:var(--dim)}
+.pill.running{border-color:rgba(52,211,153,.4);color:var(--green);box-shadow:0 0 14px rgba(52,211,153,.12)}
+.pill.running .dot{background:var(--green);animation:blink 1.2s infinite}
+.pill.done{color:var(--cyan);border-color:rgba(34,211,238,.35)}
+.pill.fail{color:var(--red);border-color:rgba(248,113,113,.4)}
+@keyframes blink{50%{opacity:.25}}
+select,input[type=number]{background:#0b1220;color:var(--txt);border:1px solid var(--line);
+  border-radius:9px;padding:7px 10px;font-size:13px;font-family:var(--sans);outline:none}
+select:focus,input:focus{border-color:rgba(34,211,238,.5)}
+button{cursor:pointer;border:none;border-radius:10px;font-family:var(--sans);font-weight:650;
+  transition:transform .06s ease, box-shadow .15s ease, opacity .15s}
+button:active{transform:scale(.97)}
+.btn{padding:9px 18px;font-size:13.5px}
+.btn-go{background:linear-gradient(135deg,#0891b2,#22d3ee);color:#04222b;
+  box-shadow:0 4px 18px rgba(34,211,238,.35)}
+.btn-go:hover{box-shadow:0 6px 26px rgba(34,211,238,.5)}
+.btn-go:disabled{opacity:.35;box-shadow:none;cursor:not-allowed}
+.btn-stop{background:linear-gradient(135deg,#7f1d1d,#f87171);color:#2a0505}
+.btn-stop:disabled{opacity:.3;cursor:not-allowed;box-shadow:none}
+.btn-ghost{background:var(--panel2);color:var(--txt);border:1px solid var(--line)}
+.btn-ghost:hover{background:rgba(148,163,184,.16)}
+
+/* ---------- KPI ---------- */
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:14px}
+@media(max-width:1100px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;
+  backdrop-filter:blur(6px);position:relative;overflow:hidden}
+.kpi::before{content:"";position:absolute;inset:0 0 auto 0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--accent,var(--cyan)),transparent);opacity:.7}
+.kpi .lab{font-size:11px;letter-spacing:1.4px;color:var(--dim);text-transform:uppercase}
+.kpi .val{font-size:26px;font-weight:750;font-family:var(--mono);margin-top:5px;
+  color:var(--accent,var(--txt))}
+.kpi .sub{font-size:11.5px;color:var(--faint);margin-top:3px}
+.kpi.cov{--accent:var(--green)} .kpi.rem{--accent:var(--cyan)}
+.kpi.kep{--accent:var(--violet)} .kpi.rnd{--accent:var(--amber)}
+.kpi.tok{--accent:var(--red)}
+
+/* ---------- akış ---------- */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;
+  backdrop-filter:blur(6px);padding:16px 18px;margin-bottom:14px}
+.panel h2{font-size:12px;letter-spacing:1.8px;color:var(--dim);text-transform:uppercase;
+  margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.panel h2 .tick{color:var(--cyan);transition:transform .18s}
+.panel h2{cursor:pointer;user-select:none}
+.panel:not(.closed) h2 .tick{transform:rotate(90deg)}
+.panel.closed .pbody{display:none}
+.pbtn{margin-left:auto;flex:0 0 auto;background:var(--panel2);color:var(--dim);
+  border:1px solid var(--line);border-radius:7px;min-width:28px;height:24px;padding:0 7px;
+  font-size:13.5px;font-weight:650;line-height:1}
+.pbtn:hover{color:var(--cyan);background:rgba(34,211,238,.08);border-color:rgba(34,211,238,.35)}
+.pbtn.spin{animation:spinh .45s linear}
+@keyframes spinh{to{transform:rotate(360deg)}}
+.flow{display:flex;align-items:stretch;gap:0;overflow-x:auto;padding:4px 0}
+.stage{flex:1;min-width:150px;border:1px solid var(--line);border-radius:13px;
+  padding:12px 14px;background:rgba(10,16,29,.6);position:relative;transition:.25s}
+.stage .ic{font-size:20px}
+.stage .nm{font-weight:650;font-size:13.5px;margin-top:6px}
+.stage .st{font-size:11.5px;color:var(--dim);margin-top:4px;min-height:15px;font-family:var(--mono)}
+.stage.active{border-color:rgba(34,211,238,.55);box-shadow:0 0 0 1px rgba(34,211,238,.3),
+  0 0 26px rgba(34,211,238,.15) inset;animation:stagepulse 1.6s infinite}
+.stage.active .nm{color:var(--cyan)}
+@keyframes stagepulse{50%{box-shadow:0 0 0 1px rgba(34,211,238,.55),0 0 34px rgba(34,211,238,.25) inset}}
+.stage.done{border-color:rgba(52,211,153,.35)}
+.stage.done .nm::after{content:" ✓";color:var(--green)}
+.arrow{display:flex;align-items:center;padding:0 8px;color:var(--faint);font-size:18px}
+
+/* ---------- grafik + rauntlar ---------- */
+.duo{display:grid;grid-template-columns:5fr 7fr;gap:14px}
+@media(max-width:1150px){.duo{grid-template-columns:1fr}}
+#chart{width:100%;height:190px}
+.roundrow{display:grid;grid-template-columns:52px 1fr auto;gap:12px;align-items:center;
+  padding:11px 12px;border:1px solid var(--line);border-radius:12px;margin-bottom:9px;
+  background:rgba(10,16,29,.5);animation:fadein .5s ease}
+@keyframes fadein{from{opacity:0;transform:translateY(6px)}}
+.roundrow .rn{font-family:var(--mono);font-size:21px;font-weight:700;color:var(--amber);text-align:center}
+.roundrow .rn small{display:block;font-size:9.5px;color:var(--faint);letter-spacing:1px}
+.roundrow .meta{font-size:12.5px;color:var(--dim);line-height:1.55;font-family:var(--mono)}
+.roundrow .meta b{color:var(--txt);font-weight:650}
+.gain{font-family:var(--mono);font-weight:700;color:var(--green);font-size:14px}
+
+/* ---------- kalıp tablosu ---------- */
+.pat{display:grid;grid-template-columns:86px 78px 1fr;gap:10px;align-items:center;
+  padding:8px 12px;border-radius:9px;font-family:var(--mono);font-size:12.3px;
+  border:1px solid transparent;transition:.12s}
+.pat:hover{background:rgba(34,211,238,.05);border-color:rgba(34,211,238,.18)}
+.pat .cnt{color:var(--cyan);font-weight:700;text-align:right;white-space:nowrap}
+.badge{font-size:10px;font-weight:700;letter-spacing:.6px;padding:3px 8px;border-radius:999px;
+  text-align:center;text-transform:uppercase}
+.badge.healthy{color:var(--green);background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.3)}
+.badge.error{color:var(--red);background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.3)}
+.badge.none{color:var(--faint);background:var(--panel2);border:1px solid var(--line)}
+.pat .rd{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#c9d5e6}
+.pat{cursor:pointer}
+@keyframes patin{0%{background:rgba(52,211,153,.4);transform:translateX(-8px);opacity:.4}
+  30%{background:rgba(52,211,153,.22)}70%{background:rgba(52,211,153,.08)}
+  100%{background:transparent;transform:none;opacity:1}}
+.pat.newpat{animation:patin 2.2s ease}
+#patwrap{max-height:300px;overflow-y:auto;padding-right:4px}
+.live{font-size:11.5px;color:var(--green);font-family:var(--mono);display:inline-flex;
+  align-items:center;gap:6px}
+.live::before{content:"●";animation:blink 1.4s infinite}
+.kv{display:grid;grid-template-columns:130px 1fr;gap:8px 14px;font-size:12.5px;
+  padding:6px 0;border-bottom:1px dashed rgba(148,163,184,.12)}
+.kv b{color:var(--dim);font-weight:600;letter-spacing:.4px;text-transform:uppercase;font-size:10.5px;padding-top:2px}
+.kv pre{white-space:pre-wrap;word-break:break-word;font-family:var(--mono);color:#cfe0f5;
+  background:rgba(10,16,29,.55);border:1px solid var(--line);border-radius:8px;padding:9px 11px;line-height:1.6}
+.kv span.plain{color:#cfe0f5;font-family:var(--mono)}
+#treewrap{font-family:var(--mono);font-size:12.2px;line-height:1.75;max-height:260px;
+  overflow-y:auto;padding:4px 2px}
+.trow{white-space:nowrap;padding:0 6px;border-radius:6px;cursor:pointer}
+.trow:hover{background:rgba(34,211,238,.06)}
+.trow .tm{color:var(--green);font-size:11.5px;display:inline-block;min-width:66px}
+.trow .pth{color:var(--amber);opacity:.85}
+.trow .nm{color:#c9d5e6}
+.trow .sz{color:var(--faint);font-size:11px;margin-left:8px}
+.trow.fresh{animation:freshfile 2.4s ease}
+@keyframes freshfile{0%{background:rgba(52,211,153,.28)}70%{background:rgba(52,211,153,.10)}100%{background:transparent}}
+.filepre{white-space:pre-wrap;word-break:break-word;font-family:var(--mono);font-size:12px;
+  line-height:1.6;color:#cfe0f5;background:rgba(5,8,16,.7);border:1px solid var(--line);
+  border-radius:10px;padding:12px 14px;margin-top:10px;max-height:56vh;overflow:auto}
+
+/* ---------- konsol: alta sabitlenmiş gerçek panel (örtmez, alt bar üstünde) ---------- */
+#main{flex:1 1 auto;min-height:0;overflow-y:auto;padding:18px 22px 6px}
+#consolePanel{flex:0 0 auto;margin:0 22px 8px;height:168px;background:rgba(10,15,26,.96)}
+#consolePanel.closed{height:auto}
+#console{background:#050810;border:1px solid var(--line);border-radius:12px;padding:13px 15px;
+  font-family:var(--mono);font-size:12px;line-height:1.62;color:#9fd6b8;white-space:pre-wrap;
+  height:118px;overflow-y:auto}
+#console::after{content:"▊";color:var(--green);animation:blink 1s infinite}
+
+/* ---------- alt bar ---------- */
+.actionbar{flex:0 0 auto;display:flex;gap:10px;align-items:center;
+  padding:12px 22px;background:rgba(7,11,20,.92);border-top:1px solid var(--line);
+  backdrop-filter:blur(10px);flex-wrap:wrap}
+.actionbar label{font-size:11.5px;color:var(--dim);letter-spacing:.8px}
+#selFile{font-family:var(--mono);min-width:330px}
+.hint{font-size:11px;color:var(--faint)}
+
+/* ---------- modal ---------- */
+.modal{position:fixed;inset:0;background:rgba(4,7,13,.72);display:none;align-items:center;
+  justify-content:center;z-index:100;backdrop-filter:blur(3px)}
+.modal.open{display:flex}
+.mbox{width:min(760px,92vw);max-height:82vh;overflow:hidden;display:flex;flex-direction:column;
+  background:#0b1220;border:1px solid var(--line);border-radius:16px;
+  box-shadow:0 24px 80px rgba(0,0,0,.55)}
+.mhead{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.mhead b{font-size:14px}
+.mbody{padding:12px 14px;overflow-y:auto;flex:1}
+.crumb{font-family:var(--mono);font-size:12px;color:var(--cyan);padding:4px 6px 12px;
+  word-break:break-all;cursor:pointer}
+.frow{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:9px;cursor:pointer;
+  font-family:var(--mono);font-size:13px}
+.frow:hover{background:rgba(34,211,238,.07)}
+.frow .fi{width:20px;text-align:center}
+.frow .sz{margin-left:auto;color:var(--faint);font-size:11px}
+.frow.file.sel{background:rgba(52,211,153,.1);outline:1px solid rgba(52,211,153,.35)}
+#drop{border:2px dashed rgba(148,163,184,.3);border-radius:14px;padding:34px;text-align:center;
+  color:var(--dim);font-size:13.5px;transition:.2s;cursor:pointer}
+#drop.hot{border-color:var(--cyan);color:var(--cyan);background:rgba(34,211,238,.05)}
+.mfoot{display:flex;gap:10px;justify-content:flex-end;padding:12px 16px;border-top:1px solid var(--line)}
+
+/* ---------- toast ---------- */
+#toasts{position:fixed;right:18px;top:18px;display:flex;flex-direction:column;gap:9px;z-index:200}
+.toast{background:#0d1626;border:1px solid var(--line);border-left:3px solid var(--cyan);
+  border-radius:10px;padding:11px 16px;font-size:13px;max-width:380px;
+  box-shadow:0 10px 30px rgba(0,0,0,.4);animation:fadein .3s ease}
+.toast.err{border-left-color:var(--red)}
+.toast.ok{border-left-color:var(--green)}
+.empty{color:var(--faint);font-size:13px;padding:22px;text-align:center;font-family:var(--mono)}
+</style>
+</head>
+<body>
+
+<div id="main">
+
+<header>
+  <div class="logo">
+    <div class="mark"></div>
+    <h1>SRE-FOR-ALL <small>CANLI ÖĞRENME KONSOLU</small></h1>
+  </div>
+  <div class="spacer"></div>
+  <select id="runsel" title="Koşu arşivi"><option value="">— en yeni koşu —</option></select>
+  <span class="pill" id="statusPill"><span class="dot"></span><span id="statusTxt">BEKLİYOR</span></span>
+  <span class="live" id="liveTick">canlı</span>
+  <span class="hint" id="elapsed"></span>
+  <button class="btn btn-stop" id="btnStop" title="Koşuyu durdurur — kısmi çıktılar korunur">■ DURDUR</button>
+</header>
+
+<div class="kpis">
+  <div class="kpi cov"><div class="lab">Kapsam</div><div class="val" id="kCov">—</div><div class="sub" id="kCovSub">öğrenilen / toplam</div></div>
+  <div class="kpi rem"><div class="lab">Elenen</div><div class="val" id="kRem">—</div><div class="sub" id="kRemSub">segment</div></div>
+  <div class="kpi kep"><div class="lab">Kalan (bilinmeyen)</div><div class="val" id="kKep">—</div><div class="sub" id="kKepSub">segment</div></div>
+  <div class="kpi rnd"><div class="lab">Raunt</div><div class="val" id="kRnd">—</div><div class="sub" id="kRndSub">öğrenme turu</div></div>
+  <div class="kpi tok"><div class="lab">LLM Token</div><div class="val" id="kTok">—</div><div class="sub" id="kTokSub">düşünme: —</div></div>
+</div>
+
+<div class="panel" id="flowPanel">
+  <h2><span class="tick">▸</span> Pipeline Akışı — şu an ne yapıyor? <button class="pbtn" data-refresh="state" title="Şimdi yenile">↻</button></h2>
+  <div class="pbody">
+  <div class="flow">
+    <div class="stage" id="st0"><div class="ic">🧹</div><div class="nm">SANITIZE</div><div class="st" id="st0s">bekliyor</div></div>
+    <div class="arrow">⟶</div>
+    <div class="stage" id="st1"><div class="ic">✂️</div><div class="nm">CHUNK</div><div class="st" id="st1s">bekliyor</div></div>
+    <div class="arrow">⟶</div>
+    <div class="stage" id="st2"><div class="ic">🧠</div><div class="nm">LLM ÖĞRENME</div><div class="st" id="st2s">bekliyor</div></div>
+    <div class="arrow">⟶</div>
+    <div class="stage" id="st3"><div class="ic">🧹</div><div class="nm">CLEAN</div><div class="st" id="st3s">bekliyor</div></div>
+    <div class="arrow">⟲</div>
+    <div class="stage" id="st4"><div class="ic">🔁</div><div class="nm">SONRAKİ RAUNT</div><div class="st" id="st4s">—</div></div>
+  </div>
+  </div>
+</div>
+
+<div class="duo">
+  <div class="panel" id="chartPanel">
+    <h2><span class="tick">▸</span> Kapsam Tırmanışı <button class="pbtn" data-refresh="state" title="Şimdi yenile">↻</button></h2>
+    <div class="pbody"><svg id="chart" viewBox="0 0 500 190" preserveAspectRatio="none"></svg></div>
+  </div>
+  <div class="panel" id="roundsPanel">
+    <h2><span class="tick">▸</span> Rauntlar <button class="pbtn" data-refresh="state" title="Şimdi yenile">↻</button></h2>
+    <div class="pbody"><div id="rounds"><div class="empty">henüz raunt yok — bir koşu başlat</div></div></div>
+  </div>
+</div>
+
+<div class="panel" id="patPanel">
+  <h2><span class="tick">▸</span> Öğrenilen Kalıplar <span class="hint" id="patCount"></span> <button class="pbtn" data-refresh="patterns" title="Şimdi yenile">↻</button></h2>
+  <div class="pbody"><div id="patwrap"><div class="empty">kalıplar burada canlı listelenecek</div></div></div>
+</div>
+
+<div class="panel" id="treePanel">
+  <h2><span class="tick">▸</span> Oluşan Dosyalar <span class="hint" id="treeCount"></span> <button class="pbtn" data-refresh="tree" title="Şimdi yenile">↻</button></h2>
+  <div class="pbody"><div id="treewrap"><div class="empty">koşu klasörü burada canlı büyüyecek</div></div></div>
+</div>
+
+</div>
+
+<div class="panel" id="consolePanel">
+  <h2><span class="tick">▸</span> Canlı Konsol <span class="live" id="liveTick2">canlı</span> <button class="pbtn" data-refresh="log" title="Şimdi yenile">↻</button></h2>
+  <div class="pbody"><div id="console">bağlanıyor…</div></div>
+</div>
+
+<div class="actionbar">
+  <label>GİRDİ</label>
+  <select id="selFile"><option value="">dosya seç…</option></select>
+  <button class="btn btn-ghost" id="btnBrowse">📂 Gezin</button>
+  <button class="btn btn-ghost" id="btnUpload">⬆ Yükle</button>
+  <label>RAUNT</label><input type="number" id="inpRounds" value="3" min="1" max="200" style="width:76px">
+  <label>TOKEN</label><input type="number" id="inpTokens" value="10000" min="1000" step="500" style="width:96px">
+  <button class="btn btn-go" id="btnStart">▶ BAŞLAT</button>
+  <span class="hint" id="barMsg"></span>
+</div>
+
+<div class="modal" id="mBrowse">
+  <div class="mbox">
+    <div class="mhead"><b>📂 /workspace içinde gezin</b><span class="spacer" style="flex:1"></span>
+      <button class="btn btn-ghost" id="mClose1" style="padding:6px 12px">✕</button></div>
+    <div class="mbody"><div class="crumb" id="crumb">/workspace</div><div id="flist"></div></div>
+    <div class="mfoot"><button class="btn btn-go" id="mPick" disabled>Seç</button></div>
+  </div>
+</div>
+
+<div class="modal" id="mUpload">
+  <div class="mbox">
+    <div class="mhead"><b>⬆ Log yükle</b><span style="flex:1"></span>
+      <button class="btn btn-ghost" id="mClose2" style="padding:6px 12px">✕</button></div>
+    <div class="mbody">
+      <div id="drop">Log dosyasını buraya sürükle <b>veya</b> tıkla ve seç<br>
+        <span class="hint">/workspace/data/uploads/ içine kaydedilir</span></div>
+      <input type="file" id="fileInp" style="display:none">
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="mFile">
+  <div class="mbox">
+    <div class="mhead"><b id="fileTitle">📄 dosya</b> <span class="live">canlı</span><span style="flex:1"></span>
+      <button class="btn btn-ghost" id="mFileRefresh" style="padding:6px 12px" title="Şimdi yenile">↻</button>
+      <button class="btn btn-ghost" id="mClose4" style="padding:6px 12px">✕</button></div>
+    <div class="mbody">
+      <div class="kv" id="fileMeta"></div>
+      <pre id="fileBody" class="filepre">yükleniyor…</pre>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="mPat">
+  <div class="mbox">
+    <div class="mhead"><b id="patTitle">Kalıp</b><span style="flex:1"></span>
+      <button class="btn btn-ghost" id="mClose3" style="padding:6px 12px">✕</button></div>
+    <div class="mbody" id="patBody"></div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+let curRun=""; let anim={};
+const fmt=n=>n==null?"—":Number(n).toLocaleString("tr-TR");
+
+function toast(msg,cls=""){const t=document.createElement("div");t.className="toast "+cls;
+  t.textContent=msg;$("toasts").appendChild(t);setTimeout(()=>t.remove(),4200);}
+
+async function jget(u){try{const r=await fetch(u+(u.includes("?")?"&":"?")+"_="+Date.now());return await r.json();}catch(e){return null;}}
+async function jpost(u,body){try{const r=await fetch(u,{method:"POST",
+  headers:{"Content-Type":"application/json"},body:JSON.stringify(body||{})});return await r.json();}
+  catch(e){return {ok:false,error:"bağlantı yok"};}}
+
+function countUp(id,val,suffix=""){
+  const el=$(id); if(el._v===val){el.textContent=fmt(val)+suffix;return;}
+  const from=el._v||0; el._v=val; const t0=performance.now();
+  (function step(t){const k=Math.min(1,(t-t0)/650), e=1-Math.pow(1-k,3);
+    el.textContent=fmt(Math.round(from+(val-from)*e))+suffix;
+    if(k<1)requestAnimationFrame(step);})(t0);
+}
+
+/* ---------- akış durumu ---------- */
+function setStages(s){ // s: array of {i, state:'idle|active|done', txt}
+  for(let i=0;i<5;i++){const el=$("st"+i);el.classList.remove("active","done");}
+  s.forEach(x=>{const el=$("st"+x.i);$("st"+x.i+"s").textContent=x.txt;
+    if(x.state)el.classList.add(x.state);});
+}
+
+function inferStages(st){
+  const hb=st.heartbeat, run=st.running;
+  const rep=st.pipeline||{};
+  const rounds=(rep.rounds||[]);
+  const lastDone=rounds.length && rounds[rounds.length-1].coverage_pct!=null;
+  if(!run){
+    if(rep.status==="completed")return setStages([
+      {i:0,state:"done",txt:"bitti"},{i:1,state:"done",txt:""},{i:2,state:"done",txt:""},
+      {i:3,state:"done",txt:""},{i:4,txt:rep.stop_reason||"tamamlandı"}]);
+    return setStages([{i:0,txt:"bekliyor"},{i:1,txt:""},{i:2,txt:""},{i:3,txt:""},{i:4,txt:""}]);
+  }
+  if(hb){
+    const th=fmt(hb.reasoning_chars), cn=fmt(hb.content_chars);
+    return setStages([{i:0,state:"done",txt:""},{i:1,state:"done",txt:""},
+      {i:2,state:"active",txt:"düşünme "+th+" · cevap "+cn+" krk"},
+      {i:3,txt:"sırada"},{i:4,txt:""}]);
+  }
+  // heartbeat yok: adımı workdir içeriğinden tahmin et
+  const hbp=st.stage_hint||"";
+  if(hbp==="sanitize")return setStages([{i:0,state:"active",txt:"temizleniyor…"},
+    {i:1,txt:"sırada"},{i:2,txt:""},{i:3,txt:""},{i:4,txt:""}]);
+  if(hbp==="chunk")return setStages([{i:0,state:"done",txt:""},{i:1,state:"active",txt:"dilim kesiliyor…"},
+    {i:2,txt:"sırada"},{i:3,txt:""},{i:4,txt:""}]);
+  if(hbp==="clean")return setStages([{i:0,state:"done",txt:""},{i:1,state:"done",txt:""},
+    {i:2,state:"done",txt:""},{i:3,state:"active",txt:st.clean_live||"eleniyor…"},{i:4,txt:""}]);
+  return setStages([{i:0,state:"done",txt:""},{i:1,state:"done",txt:""},
+    {i:2,state:"active",txt:"llm…"},{i:3,txt:""},{i:4,txt:""}]);
+}
+
+/* ---------- grafik ---------- */
+function drawChart(rep){
+  const svg=$("chart");const rounds=(rep.rounds||[]).filter(r=>r.coverage_pct!=null);
+  const W=560,H=210,PL=52,PR=20,PT=18,PB=34;
+  if(!rounds.length){svg.innerHTML='<text x="280" y="105" fill="#5a6b85" font-size="13" text-anchor="middle" font-family="monospace">raunt verisi bekleniyor…</text>';return;}
+  const maxV=Math.max(...rounds.map(r=>r.coverage_pct));
+  const step=Math.max(1,Math.pow(10,Math.floor(Math.log10(maxV||1))));
+  const maxY=Math.min(100,Math.ceil((maxV*1.15)/step)*step||10);
+  const X=i=>PL+(W-PL-PR)*(rounds.length===1?0.5:i/(rounds.length-1));
+  const Y=v=>H-PB-(H-PT-PB)*(v/maxY);
+  let grid="";
+  const TICKS=4;
+  for(let g=0;g<=TICKS;g++){const v=maxY*g/TICKS,y=Y(v);
+    grid+=`<line x1="${PL}" y1="${y.toFixed(1)}" x2="${W-PR}" y2="${y.toFixed(1)}" stroke="rgba(148,163,184,.1)" stroke-width="1"/>`
+      +(g>0?`<text x="${PL-9}" y="${(y+4).toFixed(1)}" fill="#5a6b85" font-size="11" text-anchor="end" font-family="monospace">${Math.round(v)}</text>`:"");}
+  const pts=rounds.map((r,i)=>[X(i),Y(r.coverage_pct)]);
+  let d=`M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+  for(let i=1;i<pts.length;i++){const [x0,y0]=pts[i-1],[x1,y1]=pts[i];
+    const mx=((x0+x1)/2).toFixed(1);
+    d+=` C${mx},${y0.toFixed(1)} ${mx},${y1.toFixed(1)} ${x1.toFixed(1)},${y1.toFixed(1)}`;}
+  const area=d+` L${pts[pts.length-1][0].toFixed(1)},${Y(0)} L${pts[0][0].toFixed(1)},${Y(0)} Z`;
+  const last=pts[pts.length-1];
+  svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  svg.innerHTML=`
+   <defs>
+     <linearGradient id="gfill" x1="0" y1="0" x2="0" y2="1">
+       <stop offset="0" stop-color="#22d3ee" stop-opacity=".34"/><stop offset="1" stop-color="#22d3ee" stop-opacity="0"/></linearGradient>
+     <filter id="glow"><feGaussianBlur stdDeviation="3.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+   </defs>
+   ${grid}
+   <path d="${area}" fill="url(#gfill)"/>
+   <path d="${d}" fill="none" stroke="#22d3ee" stroke-width="2.6" stroke-linecap="round" filter="url(#glow)"/>
+   ${pts.map((p,i)=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="4.2" fill="#0a101d"
+      stroke="#22d3ee" stroke-width="2"><title>Raunt ${rounds[i].round}: %${rounds[i].coverage_pct} (+${rounds[i].gain_pct||0})</title></circle>
+      <text x="${p[0].toFixed(1)}" y="${H-12}" fill="#5a6b85" font-size="11" text-anchor="middle" font-family="monospace">R${rounds[i].round}</text>`).join("")}
+   <circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="6" fill="#22d3ee" filter="url(#glow)"/>
+   <text x="${Math.min(W-PR,last[0]+10).toFixed(1)}" y="${(last[1]-12).toFixed(1)}" fill="#22d3ee"
+     font-size="15" font-weight="700" font-family="monospace">%${rounds[rounds.length-1].coverage_pct}</text>
+   <text x="${PL}" y="${PT-4}" fill="#5a6b85" font-size="10.5" font-family="monospace" letter-spacing="1">KAPSAM % — RAUNT BAZLI</text>`;
+}
+
+/* ---------- render ---------- */
+function render(st){
+  const rep=st.pipeline;
+  const pill=$("statusPill"),txt=$("statusTxt");
+  pill.className="pill";
+  if(st.running){pill.classList.add("running");txt.textContent="ÇALIŞIYOR";}
+  else if(rep&&rep.status==="completed"){pill.classList.add("done");txt.textContent="TAMAMLANDI";}
+  else if(rep&&rep.status==="failed"){pill.classList.add("fail");txt.textContent="HATA";}
+  else{txt.textContent="BEKLİYOR";}
+  $("btnStop").disabled=!st.running;
+  $("btnStart").disabled=st.running;
+  if(st.input)$("barMsg").textContent="girdi: "+st.input.split("/").pop();
+  else if(rep&&rep.input)$("barMsg").textContent="girdi: "+rep.input.split("/").pop();
+
+  if(rep){
+    countUp("kCov",(rep.coverage_pct??0).toFixed(1).replace(".",","),"%".replace("%",""));
+    $("kCov").textContent=rep.coverage_pct!=null?("%"+rep.coverage_pct.toFixed(1).toString().replace(".",",")):"—";
+    countUp("kRem",rep.total_removed||0);
+    const kept=(rep.total_segments||0)-(rep.total_removed||0);
+    countUp("kKep",Math.max(0,kept));
+    countUp("kRnd",rep.rounds_done||0);
+    const lt=rep.llm_totals||{};
+    countUp("kTok",lt.total_tokens||0);
+    $("kTokSub").textContent="düşünme: "+fmt(lt.reasoning_tokens||0);
+    $("kCovSub").textContent=fmt(rep.total_removed)+" / "+fmt(rep.total_segments)+" segment";
+    $("elapsed").textContent=rep.status==="running"?("⏱ "+Math.round(rep.elapsed_sec)+" sn")
+      :(rep.stop_reason||"");
+    drawChart(rep);
+    const rr=(rep.rounds||[]).filter(r=>r.coverage_pct!=null);
+    $("rounds").innerHTML=rr.length?rr.map(r=>`
+      <div class="roundrow">
+        <div class="rn">${r.round}<small>RAUNT</small></div>
+        <div class="meta"><b>${fmt(r.removed)}</b> segment elendi · kalan <b>${fmt(r.kept)}</b>
+          · chunk ${fmt(r.chunk_segments)} seg · ${fmt(r.patterns)} kalıp
+          ${r.llm_usage&&r.llm_usage.total_tokens?("· "+fmt(r.llm_usage.total_tokens)+" token"):""}</div>
+        <div class="gain">+%${(r.gain_pct||0).toFixed(1).toString().replace(".",",")}</div>
+      </div>`).join(""):'<div class="empty">henüz tamamlanmış raunt yok</div>';
+  }
+  inferStages(st);
+}
+
+let PATS=[]; let PREV_PAT_KEYS=new Set();
+async function renderPatterns(){
+  const d=await jget("/api/patterns"+(curRun?("?workdir="+encodeURIComponent(curRun)):""));
+  if(!d||!d.patterns){return;}
+  PATS=d.patterns;
+  const pats=PATS;
+  $("patCount").textContent="("+pats.length+" kalıp · detay için tıkla)";
+  $("patwrap").innerHTML=pats.length?pats.map((p,i)=>{
+    const key=(p.tag||"")+"|"+(p.readable||"");
+    const isNew=PREV_PAT_KEYS.size>0 && !PREV_PAT_KEYS.has(key);
+    return `
+    <div class="pat ${isNew?"newpat":""}" data-i="${i}">
+      <div class="cnt">×${fmt(p.matched)}</div>
+      <div><span class="badge ${p.label||"none"}">${p.label||"—"}</span></div>
+      <div class="rd" title="${(p.readable||"").replace(/"/g,"&quot;")}">${p.readable||"—"}</div>
+    </div>`;}).join(""):'<div class="empty">henüz kalıp öğrenilmedi</div>';
+  PREV_PAT_KEYS=new Set(pats.map(p=>(p.tag||"")+"|"+(p.readable||"")));
+  document.querySelectorAll(".pat").forEach(r=>r.onclick=()=>openPat(+r.dataset.i));
+}
+function esc(s){return String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function openPat(i){
+  const p=PATS[i]; if(!p) return;
+  const f=p.full||{};
+  const rows=[
+    ["ETİKET",`<span class="plain">${esc(p.label||"—")}</span>`],
+    ["GERÇEK EŞLEŞME",`<span class="plain">×${fmt(p.matched)} segment</span>`],
+    ["LLM SEEN İDDİASI",`<span class="plain">${fmt(p.seen_claimed)} (öğrenildiği chunk'ta)</span>`],
+    ["RAUNT",`<span class="plain">${esc((p.round||"—").replace("round_","Raunt "))}</span>`],
+    ["SEGMENT SAYISI",`<span class="plain">${esc(p.segments??"—")}${p.over_broad?" · ⚠ aşırı-geniş":""}</span>`],
+    ["READABLE",`<pre>${esc(p.readable||"—")}</pre>`],
+    ["REGEX (TAM)",`<pre>${esc(f.regex||"—")}</pre>`],
+    ["EXAMPLE (VERBATIM)",`<pre>${esc(f.example||"—")}</pre>`],
+  ];
+  Object.keys(f).forEach(k=>{
+    if(["tag","label","regex","example","readable","seen"].includes(k))return;
+    rows.push([esc(k),`<pre>${esc(typeof f[k]==="object"?JSON.stringify(f[k]):f[k])}</pre>`]);});
+  $("patTitle").textContent=(p.tag||"kalıp");
+  $("patBody").innerHTML=rows.map(r=>`<div class="kv"><b>${r[0]}</b>${r[1]}</div>`).join("");
+  $("mPat").classList.add("open");
+}
+$("mClose3").onclick=()=>$("mPat").classList.remove("open");
+
+let PREV_PATHS=new Set();
+function hsize(b){if(b==null)return"";if(b<1024)return b+" B";
+  if(b<1048576)return (b/1024).toFixed(1)+" KB";return (b/1048576).toFixed(1)+" MB";}
+function fmtTime(ts){if(!ts)return"—";const d=new Date(ts*1000),now=new Date();
+  const t=d.toLocaleTimeString("tr-TR");
+  return d.toDateString()===now.toDateString()?t
+    :d.toLocaleDateString("tr-TR",{day:"2-digit",month:"2-digit"})+" "+t;}
+async function renderTree(){
+  const d=await jget("/api/tree"+(curRun?("?workdir="+encodeURIComponent(curRun)):""));
+  const wrap=$("treewrap");
+  if(!d||!d.tree){wrap.innerHTML='<div class="empty">koşu klasörü yok</div>';return;}
+  const files=[],nowPaths=new Set();
+  (function walk(n){(n.children||[]).forEach(c=>{c.dir?walk(c):(files.push(c),nowPaths.add(c.rel));});})(d.tree);
+  files.sort((a,b)=>(b.mtime||0)-(a.mtime||0));            // EN GÜNCEL EN ÜSTTE
+  let bytes=0;files.forEach(f=>bytes+=f.size||0);
+  const MAXSHOW=600;
+  const rows=files.slice(0,MAXSHOW).map(n=>{
+    const isNew=!PREV_PATHS.has(n.rel)&&PREV_PATHS.size>0;
+    const slash=n.rel.lastIndexOf("/");
+    const dirp=slash>=0?n.rel.slice(0,slash+1):"";
+    const nm=slash>=0?n.rel.slice(slash+1):n.rel;
+    return `<div class="trow ${isNew?"fresh":""}" data-rel="${esc2(n.rel)}" title="/${esc2(n.rel)} — tıkla: içeriği gör">`
+      +`<span class="tm">${fmtTime(n.mtime)}</span> <span class="pth">${esc2(dirp)}</span>`
+      +`<span class="nm">${esc2(nm)}</span><span class="sz">${hsize(n.size)}</span></div>`;
+  }).join("");
+  PREV_PATHS=nowPaths;
+  $("treeCount").textContent="("+files.length+" dosya · "+hsize(bytes)+")";
+  wrap.innerHTML=rows
+    ?rows+(files.length>MAXSHOW?`<div class="empty">… en güncel ${MAXSHOW} gösteriliyor</div>`:"")
+    :'<div class="empty">boş</div>';
+  wrap.querySelectorAll(".trow").forEach(r=>r.onclick=()=>openFile(r.dataset.rel));
+}
+function esc2(s){return String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;");}
+
+/* ---------- dosya içeriği popup (tıkla-aç, açıkken canlı tazelenir) ---------- */
+let curFileRel=null;
+async function renderFile(){
+  if(!curFileRel)return;
+  const q=curRun?("&workdir="+encodeURIComponent(curRun)):"";
+  const d=await jget("/api/file?path="+encodeURIComponent(curFileRel)+q);
+  const body=$("fileBody"),meta=$("fileMeta");
+  if(!d||d.error){body.textContent=d&&d.error?("hata: "+d.error):"okunamadı";return;}
+  const atBottom=body.scrollHeight-body.scrollTop-body.clientHeight<40;
+  meta.innerHTML=
+    `<b>DOSYA</b><span class="plain">${esc(curFileRel)}</span>`
+    +`<b>BOYUT</b><span class="plain">${hsize(d.size)}${d.truncated?" · son "+hsize(d.tail_bytes)+" gösteriliyor":""}</span>`
+    +`<b>GÜNCELLENME</b><span class="plain">${new Date(d.mtime*1000).toLocaleString("tr-TR")}</span>`;
+  const prev=body.textContent;
+  body.textContent=d.content||"(boş dosya)";
+  if(prev!==body.textContent&&atBottom)body.scrollTop=body.scrollHeight;
+}
+function openFile(rel){
+  curFileRel=rel;
+  $("fileTitle").textContent="📄 "+rel;
+  $("fileBody").textContent="yükleniyor…";
+  $("mFile").classList.add("open");
+  renderFile();
+}
+$("mClose4").onclick=()=>{$("mFile").classList.remove("open");curFileRel=null;};
+$("mFileRefresh").onclick=()=>renderFile();
+
+async function renderConsole(){
+  const d=await jget("/api/log");
+  if(d&&d.tail!=null){const c=$("console");
+    if(d.tail){c.textContent=d.tail;c.scrollTop=c.scrollHeight;return;}
+    // console.log yok (ör. terminalden başlamış eski koşu) — canlı etkinlik sentezle
+    if(LASTST){
+      const st=LASTST, rep=st.pipeline||{}, hb=st.heartbeat;
+      const lines=[];
+      const now=new Date().toLocaleTimeString("tr-TR");
+      if(rep.input)lines.push("["+now+"] GİRDİ  "+rep.input.split("/").pop());
+      if(rep.rounds_done)lines.push("["+now+"] RAUNT  "+rep.rounds_done+" tamamlandı · kapsam %"+rep.coverage_pct);
+      if(hb)lines.push("["+now+"] LLM    düşünme "+fmt(hb.reasoning_chars)+" karakter · cevap "+fmt(hb.content_chars)+" karakter · "+hb.elapsed_sec+" sn");
+      else if(st.clean_live)lines.push("["+now+"] CLEAN  "+st.clean_live+" segment işlendi · adım: "+(rep.current_step||"?"));
+      else if(st.running)lines.push("["+now+"] ADIM   "+(rep.current_step||"…")+" çalışıyor…");
+      if(lines.length){
+        lastSynth=lines;
+        c.textContent="(bu koşu terminalden başladı — console.log yok; canlı etkinlik sentezi)\n\n"+lines.join("\n");
+        c.scrollTop=c.scrollHeight;return;
+      }
+    }
+    c.textContent=stWasRunning?"(konsol verisi bekleniyor…)":"konsol sessiz — koşu başlatın";
+  }
+}
+let stWasRunning=false; let LASTST=null; let lastSynth=[];
+
+async function refreshRuns(){
+  const d=await jget("/api/runs");
+  if(!d)return;
+  const sel=$("runsel");const cur=sel.value;
+  sel.innerHTML='<option value="">— en yeni koşu —</option>'+
+    d.runs.map(r=>`<option value="${r.workdir}">${r.name} · %${r.coverage??0} · ${r.rounds} raunt · ${r.status}</option>`).join("");
+  if(cur)sel.value=cur;
+}
+
+/* ---------- panel aç/kapa + per-panel yenile ---------- */
+function refreshState(){
+  const q=curRun?("?workdir="+encodeURIComponent(curRun)):"";
+  jget("/api/state"+q).then(st=>{if(st){render(st);stWasRunning=st.running;LASTST=st;}});
+}
+const REFRESH={state:refreshState,patterns:renderPatterns,tree:renderTree,log:renderConsole};
+document.querySelectorAll(".panel").forEach(p=>{
+  const h=p.querySelector("h2"); if(!h) return;
+  const key="panel_"+(p.id||"x");
+  try{ if(localStorage.getItem(key)==="1") p.classList.add("closed"); }catch(_){}
+  h.addEventListener("click",e=>{
+    if(e.target.closest(".pbtn")) return;
+    p.classList.toggle("closed");
+    try{ localStorage.setItem(key,p.classList.contains("closed")?"1":"0"); }catch(_){}
+  });
+});
+document.querySelectorAll(".pbtn").forEach(b=>{
+  b.addEventListener("click",e=>{
+    e.stopPropagation();
+    b.classList.remove("spin"); void b.offsetWidth; b.classList.add("spin");
+    const f=REFRESH[b.dataset.refresh]; if(f) f();
+  });
+});
+
+/* ---------- döngü ---------- */
+let tick=0;
+async function loop(){
+  try{
+    const q=curRun?("?workdir="+encodeURIComponent(curRun)):"";
+    const st=await jget("/api/state"+q);
+    if(st){render(st);stWasRunning=st.running;LASTST=st;}
+    await renderPatterns();
+    renderTree();
+    renderConsole();
+    if($("mFile").classList.contains("open")&&curFileRel)renderFile();
+    const t=new Date();
+    $("liveTick").textContent="canlı "+t.toLocaleTimeString("tr-TR");
+    $("liveTick2").textContent="canlı "+t.toLocaleTimeString("tr-TR");
+    if(++tick%10===0)refreshRuns();
+  }catch(e){}
+  setTimeout(loop,1500);
+}
+
+/* ---------- aksiyonlar ---------- */
+$("btnStart").onclick=async()=>{
+  const input=$("selFile").value;
+  if(!input)return toast("önce girdi dosyası seç","err");
+  const body={input,max_rounds:+$("inpRounds").value||3,tokens:+$("inpTokens").value||10000};
+  const r=await jpost("/api/start",body);
+  if(r.ok){toast("koşu başladı → "+r.workdir.split("/").pop(),"ok");curRun="";$("runsel").value="";}
+  else toast(r.error||"başlatılamadı","err");
+};
+$("btnStop").onclick=async()=>{const r=await jpost("/api/stop",{});
+  toast(r.ok?"durduruluyor…":(r.error||""),r.ok?"ok":"err");};
+$("runsel").onchange=e=>{curRun=e.target.value;};
+
+/* dosya gezinme */
+let fsCur="/workspace",fsSel=null;
+async function openBrowse(p){
+  $("mBrowse").classList.add("open");
+  fsSel=null;$("mPick").disabled=true;
+  const d=await jget("/api/fs?path="+encodeURIComponent(p||fsCur));
+  if(!d)return;
+  fsCur=d.path;$("crumb").textContent=d.path||"/workspace";
+  $("flist").innerHTML=(d.entries||[]).map(e=>`
+    <div class="frow ${e.dir?"":"file"}" data-n="${e.name}" data-d="${e.dir?1:0}">
+      <span class="fi">${e.dir?"📁":"📄"}</span><span>${e.name}</span>
+      <span class="sz">${e.dir?"":fmt(e.size)+" B"}</span></div>`).join("")
+    ||'<div class="empty">boş klasör</div>';
+  document.querySelectorAll(".frow").forEach(r=>r.onclick=()=>{
+    const n=r.dataset.n,isD=r.dataset.d==="1";
+    if(isD)openBrowse(fsCur+"/"+n);
+    else{document.querySelectorAll(".frow.file").forEach(x=>x.classList.remove("sel"));
+      r.classList.add("sel");fsSel=fsCur+"/"+n;$("mPick").disabled=false;}
+  });
+}
+$("btnBrowse").onclick=()=>openBrowse("/workspace");
+$("mClose1").onclick=()=>$("mBrowse").classList.remove("open");
+$("crumb").onclick=()=>openBrowse("/workspace");
+$("mPick").onclick=()=>{if(fsSel){
+  const o=document.createElement("option");o.value=fsSel;o.textContent=fsSel.replace("/workspace/","");
+  const s=$("selFile");s.insertBefore(o,s.firstChild);s.value=fsSel;
+  $("mBrowse").classList.remove("open");toast("seçildi: "+fsSel.split("/").pop(),"ok");}};
+
+/* upload */
+$("btnUpload").onclick=()=>$("mUpload").classList.add("open");
+$("mClose2").onclick=()=>$("mUpload").classList.remove("open");
+const drop=$("drop"),fi=$("fileInp");
+drop.onclick=()=>fi.click();
+["dragover","dragenter"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("hot");}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("hot");}));
+drop.addEventListener("drop",e=>{if(e.dataTransfer.files[0])up(e.dataTransfer.files[0]);});
+fi.onchange=()=>{if(fi.files[0])up(fi.files[0]);};
+async function up(file){
+  drop.textContent="yükleniyor… "+file.name;
+  try{
+    const r=await fetch("/api/upload?name="+encodeURIComponent(file.name),
+      {method:"POST",body:file});
+    const j=await r.json();
+    if(j.ok){
+      const o=document.createElement("option");o.value=j.path;o.textContent="uploads/"+file.name;
+      const s=$("selFile");s.insertBefore(o,s.firstChild);s.value=j.path;
+      toast("yüklendi: "+fmt(j.bytes)+" bayt → "+file.name,"ok");
+      $("mUpload").classList.remove("open");
+    }else toast(j.error||"yükleme hatası","err");
+  }catch(e){toast("yükleme hatası","err");}
+  drop.innerHTML="Log dosyasını buraya sürükle <b>veya</b> tıkla ve seç<br><span class='hint'>/workspace/data/uploads/ içine kaydedilir</span>";
+  fi.value="";
+}
+
+refreshRuns();
+loop();
+</script>
+</body>
+</html>

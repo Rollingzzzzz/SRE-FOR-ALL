@@ -1,0 +1,2 @@
+# Shell scriptler LF kalmali (konteynerde /bin/sh calistirmak icin)
+*.sh text eol=lf

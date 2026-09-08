@@ -1,0 +1,8 @@
+Extract the recurring patterns from this log chunk. Multi-line logical events
+must be learned as ONE whole-event pattern (see the multi-segment rules).
+
+The chunk is one long line; every original log line appears as a _SOL_ ... _EOL_
+segment. Return the top recurring templates as JSON rules per the contract.
+
+LOG CHUNK:
+$hadoop

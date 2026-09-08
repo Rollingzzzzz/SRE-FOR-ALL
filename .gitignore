@@ -1,0 +1,24 @@
+# SSH anahtarları — ASLA commitlenmez
+.dev-keys/
+*.ppk
+
+# API anahtarları / gizli bilgiler — ASLA commitlenmez
+# (gerçek anahtar D:\secrets\ altında, repoların dışında durur; bunlar savunma hattı)
+.env
+*.env
+secrets/
+*api_key*
+*.key
+
+# Çalışma çıktıları
+llm/
+report.json
+data/
+
+# Geliştirme malzemeleri (üçüncü taraf log örnekleri)
+example_logs/
+
+# Python
+__pycache__/
+*.pyc
+.venv/

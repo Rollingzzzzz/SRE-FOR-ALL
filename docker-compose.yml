@@ -1,0 +1,31 @@
+services:
+  sre-dev:
+    build: .
+    container_name: sre-dev
+    ports:
+      # Sadece bu makineden erisim (LAN'a acik degil)
+      - "127.0.0.1:2222:22"
+    volumes:
+      # Proje klasoru ayni dosyalar Windows'tan ve SSH'den gorunur
+      - .:/workspace
+      # Public anahtar runtime'da mount edilir; imaj secret icermez
+      - ./.dev-keys/authorized_keys:/keys/authorized_keys:ro
+      # API anahtarlari repo DISINDA (D:\secrets) tutulur; konteyner salt-okunur gorur
+      - D:/secrets:/secrets:ro
+    restart: unless-stopped
+
+  # Opsiyonel canli dashboard — istemeyen baslatmaz:
+  #   docker compose --profile gui up -d gui
+  # Windows Chrome: http://localhost:8080  (sadece bu makine)
+  gui:
+    build: .
+    profiles: ["gui"]
+    container_name: sre-gui
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - .:/workspace
+      - D:/secrets:/secrets:ro
+    working_dir: /workspace
+    entrypoint: ["python3", "/workspace/python_scripts/gui_server.py", "--host", "0.0.0.0", "--port", "8080"]
+    restart: unless-stopped
