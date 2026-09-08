@@ -22,3 +22,7 @@ example_logs/
 __pycache__/
 *.pyc
 .venv/
+
+# demo ciktilari (buyuk binary — repoya girmez)
+demo/
+*.webm
